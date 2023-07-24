@@ -1,0 +1,4 @@
+data/VOCdevkit/VOC2007
+data/VOCtrainval_06-Nov-2007.tar
+runs/
+*.pyc

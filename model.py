@@ -67,7 +67,7 @@ class ReductConvBlock(nn.Module):
 
 class SimpleConvBlock(nn.Module):
     def __init__(self, in_ch, out_ch, ks, strd) -> None:
-        super(ReductConvBlock, self).__init__()
+        super(SimpleConvBlock, self).__init__()
 
         self.conv = nn.Conv2d(
             in_channels=in_ch,
@@ -111,6 +111,7 @@ class ConvBlock1(nn.Module):
         x = self.conv(x)
         x = F.leaky_relu(self.norm2(x), negative_slope=0.1)
         x = self.maxpool(x)
+        print("pass1")
         return x 
     
 
@@ -138,6 +139,8 @@ class ConvBlock2(nn.Module):
     def forward(self, x) -> torch.Tensor:
         x = self.rconv(x)
         x = self.maxpool(x)
+        print("pass2")
+        return x
         
 
 class ConvBlock3(nn.Module):
@@ -167,11 +170,13 @@ class ConvBlock3(nn.Module):
     def forward(self, x) -> torch.Tensor:
         x = self.rconv(x)
         x = self.maxpool(x)
+        print("pass3")
+        return x
 
 
 class ConvBlock4(nn.Module):
     def __init__(self, conf) -> None:
-        super(ConvBlock3, self).__init__()
+        super(ConvBlock4, self).__init__()
         self.conf = conf
         self.in_ch = conf.in_ch
         self.int_ch = conf.int_ch
@@ -189,26 +194,36 @@ class ConvBlock4(nn.Module):
 
     def forward(self, x):
         x = self.rconv(x)
+        print("pass4")
+        return x
 
 
 class FCLayer(nn.Module):
     def __init__(self, conf) -> None:
         super(FCLayer, self).__init__()
-        self.S = conf.S
-        self.B = conf.B
-        self.C = conf.C
-        self.lin = nn.Sequential(
-            nn.Linear(in_features=conf.in_dim, out_features=conf.int_dim),
-            nn.BatchNorm1d(conf.int_dim),
-            F.leaky_relu(conf.int_dim, negative_slope=0.1),
-            nn.Linear(in_features=conf.int_dim, out_features=conf.out_dim),
-            nn.BatchNorm1d(conf.out_dim),
-            F.sigmoid(),
-            nn.Dropout1d(p=0.2),
+        self.conf = conf
+        self.S = conf.grid.S
+        self.B = conf.grid.B
+        self.C = conf.grid.C
+        self.lin1 = nn.Sequential(
+            nn.Flatten(1),
+            nn.Linear(in_features=conf.linear.in_dim, out_features=conf.linear.int_dim),
+            nn.BatchNorm1d(conf.linear.int_dim)
         )
+        self.lin2 = nn.Sequential(
+            nn.Linear(in_features=conf.linear.int_dim, out_features=conf.linear.out_dim),
+            nn.BatchNorm1d(conf.linear.out_dim),
+        )
+        self.drop = nn.Dropout1d(p=0.2)
 
     def forward(self, x):
-        x = nn.Flatten(x)
-        out = self.lin(x)
-        out = out.reshape(self.S, self.S, self.B * 5 + self.C)
-        return out
+        # print(x.shape)
+        x = self.lin1(x)
+        # print(x.shape)
+        x = F.leaky_relu(x, negative_slope=0.1)
+        x = self.lin2(x)
+        x = torch.sigmoid(x)
+        x = self.drop(x)
+        x = x.reshape(x.shape[0], self.S, self.S, self.B * 5 + self.C)
+        print(x.shape)
+        return x

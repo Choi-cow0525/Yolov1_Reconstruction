@@ -23,11 +23,14 @@ class VOC_Custom_Dataset(Dataset):
         self.target_transform = target_transform
         with open(self.image_path, 'r') as f:
             self.imgindex = f.readlines()
-            self.lines = len(f.readlines())
+            # https://stackoverflow.com/questions/10201008/using-readlines-twice-in-a-row
+            # self.lines = len(f.readlines())
+            # print(f"self.lines is {self.imgindex}")
         
         self.idlist = []
         for line in self.imgindex:
             self.idlist.append(line)
+        # print(f"idlist is {self.idlist}")
         # self.idlist becomes below
         # [ C:\Users\sungj\Documents\Co-op\SIITLAB\YOLO/data/VOCdevkit/VOC2007/JPEGImages/000005.jpg,
         #   C:\Users\sungj\Documents\Co-op\SIITLAB\YOLO/data/VOCdevkit/VOC2007/JPEGImages/000007.jpg ]
@@ -37,10 +40,12 @@ class VOC_Custom_Dataset(Dataset):
         self.B = int(self.config.grid.B)
 
     def __len__(self):
-        return self.lines
+        return len(self.imgindex)
 
     def __getitem__(self, index) -> torch.Tensor:
         image = Image.open(self.idlist[index].strip())
+        print(image)
+        image = image.resize((448, 448))
         label = self.idlist[index][-11:-5]
         annot_path = self.config.data.label_path + label + ".txt"
         
@@ -57,8 +62,8 @@ class VOC_Custom_Dataset(Dataset):
             w, h = xmax - xmin, ymax - ymin
             cx, cy = (xmax + xmin) / 2, (ymax + ymin) / 2
             cx, cy = cx * self.S, cy * self.S
-            gx, gy = int(cx), int(cy)
-            nx, ny = cx - gx/7, cy - gy/7
+            gx, gy = int(cx), int(cy) # grid
+            nx, ny = cx - gx * 7, cy - gy * 7 # normalized
         temp[gy][gx][20:25] = [nx, ny, w, h, 1] # make conf to 1
         temp[gy][gx][cls - 1] = 1 # make cls number 1
 

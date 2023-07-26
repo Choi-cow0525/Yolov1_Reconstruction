@@ -22,7 +22,7 @@ def train(conf, epoch, train_losses):
 
         optimizer.zero_grad()
         result = model(image)
-        losses = yolo_loss(result, nb_device)
+        losses = yolo_loss(conf, result, label)
 
         # https://hongl.tistory.com/363
         loss = losses['loss_total'].clone()
@@ -71,7 +71,7 @@ def valid(conf, epoch, valid_losses):
 
             optimizer.zero_grad()
             result = model(image)
-            losses = yolo_loss(result, nb_device)
+            losses = yolo_loss(conf, result, label)
 
             ## batch-step-losses ##
             assert len(losses.keys()) == len(valid_losses.keys())
@@ -137,10 +137,10 @@ if __name__ == '__main__':
     conf = {
         "data" : {
             "train_path" : "./data/VOCdevkit/2007_train.txt",
-            "valid_path" : "./data/VOCdevkit/2007_valid.txt",
+            "valid_path" : "./data/VOCdevkit/2007_val.txt",
             "label_path" : "C:/Users/sungj/Documents/Co-op/SIITLAB/YOLO/data/VOCdevkit/VOC2007/labels/",
-            "train_img_path" : "./data/VOCdevkit/VOC2007/JPEGImages",
-            "valid_img_path" : "./data/VOCdevkit/VOC2007/JPEGImages",
+            "train_img_path" : "./data/VOCdevkit/VOC2007/JPEGImages/",
+            "valid_img_path" : "./data/VOCdevkit/VOC2007/JPEGImages/",
             "annotation_path" : "./data/VOCdevkit/VOC2007/labels/",
         },
         "train" : {
@@ -151,6 +151,8 @@ if __name__ == '__main__':
             "path_runs" : "./runs",
             "batch_size" : 2,
             "use_scheduler" : False,
+            "num_workers" : 4,
+            "epoch" : 100,
         },
         "conv1" : {
             "in_ch" : 3,
@@ -197,6 +199,7 @@ if __name__ == '__main__':
             "B" : 2,
             "C" : 20,
         },
+        "gpu" : '0',
     }
     wconf = ConfigWrapper(**conf)
 
@@ -212,8 +215,8 @@ if __name__ == '__main__':
 
     ## Data Loader ##
     start = time.time() # return current time
-    dataset_train = VOC_Custom_Dataset(wconf.dataset, ToTensor(), None, True)
-    dataset_valid = VOC_Custom_Dataset(wconf.dataset, ToTensor(), None, False)
+    dataset_train = VOC_Custom_Dataset(wconf, ToTensor(), None, True)
+    dataset_valid = VOC_Custom_Dataset(wconf, ToTensor(), None, False)
     
     end = time.time()
     print(f"DataLoading took {end-start} seconds")
@@ -232,6 +235,7 @@ if __name__ == '__main__':
         num_workers=workers,
         pin_memory=False,
         persistent_workers=True,
+        drop_last=True,
     )
     dloader_valid = DataLoader(
         dataset=dataset_valid,
@@ -240,8 +244,9 @@ if __name__ == '__main__':
         num_workers=workers,
         pin_memory=False,
         persistent_workers=True,
+        drop_last=True,
     )
-
+    print(dloader_train.__len__())
     ## Model ##
     model = Yolov1(wconf)
     if nb_device > 1:
@@ -268,8 +273,8 @@ if __name__ == '__main__':
         }
         valid_losses = copy.deepcopy(train_losses)
 
-        train(epoch, train_losses)
-        valid(epoch, valid_losses)
+        train(conf, epoch, train_losses)
+        valid(conf, epoch, valid_losses)
 
     print(f"\n<< BEST >> \nepoch: {best_epoch} \
           \nBest_loss: {best_losses['loss_total']} \

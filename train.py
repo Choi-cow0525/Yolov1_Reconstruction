@@ -1,12 +1,16 @@
 from utils.configwrapper import ConfigWrapper
 from model import Yolov1
+from model1 import Yolov12
 from data_loader import VOC_Custom_Dataset
 from utils.summary import draw_tensorboard
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from torchvision.transforms import ToTensor
 from loss import yolo_loss
+from torchsummary import summary
+from torchvision.transforms.functional import to_pil_image
 
+import pdb
 import os
 import torch
 import numpy as np
@@ -15,20 +19,35 @@ import torch.optim as optim
 import time
 import copy
 
+torch.autograd.set_detect_anomaly(True)
+
 def train(conf, epoch, train_losses):
     model.train()
     for batch_idx, (image, label) in enumerate(dloader_train):
+        print(image.shape)
+        # image1 = to_pil_image(image[0])
+        # image1.show()
         image, label = image.to(device), label.to(device)
 
         optimizer.zero_grad()
         result = model(image)
+        # print(f"resoto is everything : {result}\n")
         losses = yolo_loss(conf, result, label)
 
         # https://hongl.tistory.com/363
         loss = losses['loss_total'].clone()
-        loss.backward()
-        optimizer.step()
+        # loss.backward()
+        try:
+            loss.backward()
+        except Exception as err:
+            pdb.set_trace()
 
+        # https://discuss.pytorch.org/t/gradient-value-is-nan/91663/9
+        # for name, param in model.named_parameters():
+        #     print(name, torch.isfinite(param.grad).all())
+
+        optimizer.step()
+        lr = 0
         if conf.train.use_scheduler:
             lr = scheduler.get_last_lr()[0]
             scheduler.step()
@@ -41,7 +60,7 @@ def train(conf, epoch, train_losses):
         
         ## print during training ##
         if batch_idx % 20 == 0:
-            print(f"<Batch: {batch_idx}>\n lr: {lr}, loss_tot: {losses['loss_total']}, loss_boxes: {losses['loss_boxes']}, loss_class: {losses['loss_class']}")
+            print(f"<Batch: {batch_idx}>\n lr: {lr}, loss_tot: {losses['loss_total']}") #, loss_boxes: {losses['loss_boxes']}, loss_class: {losses['loss_class']}")
 
         ## batch-step-losses ##
         assert len(losses.keys()) == len(train_losses.keys())
@@ -80,7 +99,7 @@ def valid(conf, epoch, valid_losses):
     ## epoch-step-losses ##
     for key in losses.keys():
         valid_losses[key] /= (batch_idx + 1)
-    print(f"\n\nvalid_loss = loss_tot: {losses['loss_total']}, loss_boxes: {losses['loss_boxes']}, loss_class: {losses['loss_class']}")
+    print(f"\n\nvalid_loss = loss_tot: {losses['loss_total']}") #, loss_boxes: {losses['loss_boxes']}, loss_class: {losses['loss_class']}")
 
     draw_tensorboard(
         conf,
@@ -107,7 +126,7 @@ def valid(conf, epoch, valid_losses):
                 'model_state_dict': model.state_dict(),
             }, path_params+f'checkpoint{best_epoch}.pt')
 
-        print(f"\n\nbest_loss = loss_tot: {losses['loss_total']}, loss_boxes: {losses['loss_boxes']}, loss_class: {losses['loss_class']}")
+        print(f"\n\nbest_loss = loss_tot: {losses['loss_total']}") #, loss_boxes: {losses['loss_boxes']}, loss_class: {losses['loss_class']}")
 
         draw_tensorboard(
             conf,
@@ -191,7 +210,7 @@ if __name__ == '__main__':
         },
         "linear" : {
             "in_dim" : 7*7*1024,
-            "int_dim" : 4096,
+            "int_dim" : 496, # 4096
             "out_dim" : 7*7*30,
         },
         "grid" : {
@@ -199,7 +218,7 @@ if __name__ == '__main__':
             "B" : 2,
             "C" : 20,
         },
-        "gpu" : '0',
+        "gpu" : '1',
     }
     wconf = ConfigWrapper(**conf)
 
@@ -248,11 +267,19 @@ if __name__ == '__main__':
     )
     print(dloader_train.__len__())
     ## Model ##
+    # model = Yolov12(split_size = 7, num_boxes = 2, num_classes = 20)
     model = Yolov1(wconf)
     if nb_device > 1:
         model = nn.DataParallel(model)
     model.to(device)
 
+    summary(model, (3,448,448))
+    # for idx, p in enumerate(model.parameters()):
+    #     if p.requires_grad:
+    #         if idx == 72:
+    #             print(p)
+    #         print(f"{idx} : {p.numel()}")
+    
     print(f"Model Param Number : {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
     optimizer = optim.Adam(model.parameters(), lr = wconf.train.init_lr)
     if wconf.train.use_scheduler:
@@ -265,18 +292,17 @@ if __name__ == '__main__':
     ## Training ##
     best_epoch = 0
     best_losses = {'loss_total' : 100}
+    losses = {'loss_total' : 0}
     for epoch in tqdm(range(wconf.train.epoch)):
         train_losses = {
             'loss_total' : 0,
-            'loss_boxes' : 0,
-            'loss_class' : 0,
         }
         valid_losses = copy.deepcopy(train_losses)
 
-        train(conf, epoch, train_losses)
-        valid(conf, epoch, valid_losses)
+        train(wconf, epoch, train_losses)
+        valid(wconf, epoch, valid_losses)
 
     print(f"\n<< BEST >> \nepoch: {best_epoch} \
-          \nBest_loss: {best_losses['loss_total']} \
-          \nBest_loss_boxes: {best_losses['loss_boxes']} \
-          \nBest_loss_class: {best_losses['loss_class']}\n")
+          \nBest_loss: {best_losses['loss_total']}\n")
+        #   \nBest_loss_boxes: {best_losses['loss_boxes']} \
+        #   \nBest_loss_class: {best_losses['loss_class']}\n")

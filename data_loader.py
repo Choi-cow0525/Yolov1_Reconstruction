@@ -44,7 +44,7 @@ class VOC_Custom_Dataset(Dataset):
 
     def __getitem__(self, index) -> torch.Tensor:
         image = Image.open(self.idlist[index].strip())
-        print(image)
+        # print(image)
         image = image.resize((448, 448))
         label = self.idlist[index][-11:-5]
         annot_path = self.config.data.label_path + label + ".txt"
@@ -55,15 +55,14 @@ class VOC_Custom_Dataset(Dataset):
             line = f.readlines()
         for lin in line:
             wordlist = lin.split(" ")
-            cls, xmin, xmax, ymin, ymax = int(wordlist[0]), float(wordlist[1]), float(wordlist[2]), float(wordlist[3]), float(wordlist[4])
+            cls, xcenter, ycenter, w, h = int(wordlist[0]), float(wordlist[1]), float(wordlist[2]), float(wordlist[3]), float(wordlist[4])
+            print(f"from wordlist : {cls}, {xcenter}, {ycenter}, {w}, {h}\n")
             # find position as grid
             # The (x, y) coordinates represent the center of box relative to the bounds of grid cell
             # The width and height are predicted relative to whole image
-            w, h = xmax - xmin, ymax - ymin
-            cx, cy = (xmax + xmin) / 2, (ymax + ymin) / 2
-            cx, cy = cx * self.S, cy * self.S
+            cx, cy = xcenter * self.S, ycenter * self.S
             gx, gy = int(cx), int(cy) # grid
-            nx, ny = cx - gx * 7, cy - gy * 7 # normalized
+            nx, ny = cx - gx, cy - gy # normalized
         temp[gy][gx][20:25] = [nx, ny, w, h, 1] # make conf to 1
         temp[gy][gx][cls - 1] = 1 # make cls number 1
 

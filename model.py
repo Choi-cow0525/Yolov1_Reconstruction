@@ -3,6 +3,7 @@ import torch
 import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.transforms.functional import to_pil_image
 
 class Yolov1(nn.Module):
     def __init__(self, conf) -> None:
@@ -14,6 +15,9 @@ class Yolov1(nn.Module):
 
     def forward(self, x) -> torch.Tensor:
         grid = self.ConvBlock(x) # 7 x 7 x 1024
+        # print(f"grid.shape is {grid.shape}")
+        # image = to_pil_image(grid[0][0], mode = 'L')
+        # image.show(title = "after convolution")
         result = self.FCLayer(grid) # 7 x 7 x 30
         
         return result
@@ -134,7 +138,7 @@ class ConvBlock1(nn.Module):
         x = self.conv(x)
         x = F.leaky_relu(self.norm2(x), negative_slope=0.1)
         x = self.maxpool(x)
-        print("pass1")
+        # print("pass1")
         return x 
     
 
@@ -162,7 +166,7 @@ class ConvBlock2(nn.Module):
     def forward(self, x) -> torch.Tensor:
         x = self.rconv(x)
         x = self.maxpool(x)
-        print("pass2")
+        # print("pass2")
         return x
         
 class ConvBlock3(nn.Module):
@@ -192,7 +196,7 @@ class ConvBlock3(nn.Module):
     def forward(self, x) -> torch.Tensor:
         x = self.rconv(x)
         x = self.maxpool(x)
-        print("pass3")
+        # print("pass3")
         return x
 
 
@@ -216,7 +220,7 @@ class ConvBlock4(nn.Module):
 
     def forward(self, x):
         x = self.rconv(x)
-        print("pass4")
+        # print("pass4")
         return x
 
 
@@ -255,7 +259,7 @@ class Modified_ConvBlock(nn.Module):
             SConvBlock(conf.conv5.out_ch, conf.conv5.out_ch, ks=3, strd=1),
             SConvBlock(conf.conv5.out_ch, conf.conv5.out_ch, ks=3, strd=1),
         )
-        print(self.conv)
+        # print(self.conv)
 
     def forward(self, x):
         x = self.conv(x)
@@ -289,5 +293,5 @@ class FCLayer(nn.Module):
         x = self.lin2(x)
         x = torch.sigmoid(x)
         x = x.reshape(x.shape[0], self.S, self.S, self.B * 5 + self.C)
-        print(f"shape after forward : {x.shape}\n")
+        # print(f"shape after forward : {x.shape}\n")
         return x

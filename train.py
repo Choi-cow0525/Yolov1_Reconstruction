@@ -24,7 +24,7 @@ torch.autograd.set_detect_anomaly(True)
 def train(conf, epoch, train_losses):
     model.train()
     for batch_idx, (image, label) in enumerate(dloader_train):
-        print(image.shape)
+        # print(image.shape)
         # image1 = to_pil_image(image[0])
         # image1.show()
         image, label = image.to(device), label.to(device)
@@ -73,7 +73,7 @@ def train(conf, epoch, train_losses):
         train_losses[key] /= (batch_idx + 1)
 
     draw_tensorboard(
-        wconf,
+        path="./runs",
         losses=train_losses,
         set_name='Train',
         epoch=epoch,
@@ -171,7 +171,7 @@ if __name__ == '__main__':
             "batch_size" : 2,
             "use_scheduler" : False,
             "num_workers" : 4,
-            "epoch" : 100,
+            "epoch" : 135,
         },
         "conv1" : {
             "in_ch" : 3,

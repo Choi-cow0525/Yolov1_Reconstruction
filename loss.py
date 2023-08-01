@@ -31,7 +31,7 @@ class ObjectInBox:
         #             for j in range(rightlow[1] - lefthigh[1] + 1):
         #                 self.ifObjLabel[j+lefthigh[1]][i+lefthigh[0]] = 1
         # print(self.ifObjLabel)
-        print("Done Init\n")
+        # print("Done Init\n")
 
     # return True if IOU is highest when object exist in that cell / return False if no object exist
     def doIOU(self, i, j, boxes) -> bool: # 박스 개수만큼 for loop을 돌리면 됨

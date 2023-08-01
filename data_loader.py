@@ -56,7 +56,7 @@ class VOC_Custom_Dataset(Dataset):
         for lin in line:
             wordlist = lin.split(" ")
             cls, xcenter, ycenter, w, h = int(wordlist[0]), float(wordlist[1]), float(wordlist[2]), float(wordlist[3]), float(wordlist[4])
-            print(f"from wordlist : {cls}, {xcenter}, {ycenter}, {w}, {h}\n")
+            # print(f"from wordlist : {cls}, {xcenter}, {ycenter}, {w}, {h}\n")
             # find position as grid
             # The (x, y) coordinates represent the center of box relative to the bounds of grid cell
             # The width and height are predicted relative to whole image

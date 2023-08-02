@@ -21,6 +21,7 @@ import copy
 
 torch.autograd.set_detect_anomaly(True)
 
+
 def train(conf, epoch, train_losses):
     model.train()
     for batch_idx, (image, label) in enumerate(dloader_train):
@@ -57,6 +58,8 @@ def train(conf, epoch, train_losses):
             lr = conf.train.init_lr
         elif epoch == 104:
             lr = conf.train.fin_lr
+        else:
+            lr = conf.train.mid_lr
         
         ## print during training ##
         if batch_idx % 20 == 0:
@@ -73,7 +76,7 @@ def train(conf, epoch, train_losses):
         train_losses[key] /= (batch_idx + 1)
 
     draw_tensorboard(
-        path="./runs",
+        path="./runs/train",
         losses=train_losses,
         set_name='Train',
         epoch=epoch,
@@ -81,7 +84,7 @@ def train(conf, epoch, train_losses):
     )
 
 
-def valid(conf, epoch, valid_losses):
+def valid(conf, epoch, valid_losses, best_epoch, best_losses):
     # https://coffeedjimmy.github.io/pytorch/2019/11/05/pytorch_nograd_vs_train_eval/
     # model.eval() -> 이걸 키면 dropout layer가 작동 멈춤
     with torch.no_grad():
@@ -94,7 +97,8 @@ def valid(conf, epoch, valid_losses):
 
             ## batch-step-losses ##
             assert len(losses.keys()) == len(valid_losses.keys())
-            valid_losses[key] += losses[key].detach().cpu().item()
+            for key in losses.keys():
+                valid_losses[key] += losses[key].detach().cpu().item()
 
     ## epoch-step-losses ##
     for key in losses.keys():
@@ -102,7 +106,7 @@ def valid(conf, epoch, valid_losses):
     print(f"\n\nvalid_loss = loss_tot: {losses['loss_total']}") #, loss_boxes: {losses['loss_boxes']}, loss_class: {losses['loss_class']}")
 
     draw_tensorboard(
-        conf,
+        path="./runs/valid",
         losses=valid_losses,
         set_name='Valid',
         epoch=epoch,
@@ -129,7 +133,7 @@ def valid(conf, epoch, valid_losses):
         print(f"\n\nbest_loss = loss_tot: {losses['loss_total']}") #, loss_boxes: {losses['loss_boxes']}, loss_class: {losses['loss_class']}")
 
         draw_tensorboard(
-            conf,
+            path="./runs/best",
             losses=best_losses,
             set_name='Best',
             epoch=best_epoch,
@@ -279,6 +283,8 @@ if __name__ == '__main__':
     #         if idx == 72:
     #             print(p)
     #         print(f"{idx} : {p.numel()}")
+    model.load_state_dict(torch.load("./checkpoint/runscheckpoint1.pt")['model_state_dict'])
+    curr_epoch = torch.load("./checkpoint/runscheckpoint1.pt")['epoch']
     
     print(f"Model Param Number : {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
     optimizer = optim.Adam(model.parameters(), lr = wconf.train.init_lr)
@@ -294,13 +300,14 @@ if __name__ == '__main__':
     best_losses = {'loss_total' : 100}
     losses = {'loss_total' : 0}
     for epoch in tqdm(range(wconf.train.epoch)):
+        epoch += 3
         train_losses = {
             'loss_total' : 0,
         }
         valid_losses = copy.deepcopy(train_losses)
 
         train(wconf, epoch, train_losses)
-        valid(wconf, epoch, valid_losses)
+        valid(wconf, epoch, valid_losses, best_epoch, best_losses)
 
     print(f"\n<< BEST >> \nepoch: {best_epoch} \
           \nBest_loss: {best_losses['loss_total']}\n")
